@@ -7,11 +7,10 @@ OscRecv recv;
 6449 => recv.port;
 recv.listen();
 
-recv.event( "/rate, f" ) @=> OscEvent rate;
-recv.event( "/position, i" ) @=> OscEvent pos;
-recv.event( "/loop, i i" ) @=> OscEvent loop;
-recv.event( "/load, s s s s s s" ) @=> OscEvent files;
+OscSend xmit;
+xmit.setHost("127.0.0.1", 6448);
 
+recv.event( "/load, s s s s s s" ) @=> OscEvent files;
 fun void load_listener() {
   while ( true ) {
     files => now;
@@ -20,7 +19,9 @@ fun void load_listener() {
     }
   }
 }
+spork ~ load_listener();
 
+recv.event( "/rate, f" ) @=> OscEvent rate;
 fun void rate_listener() {
   while ( true ) {
     rate => now;
@@ -30,8 +31,34 @@ fun void rate_listener() {
     }
   }
 }
+spork ~ rate_listener();
 
-fun void position_listener() {
+recv.event( "/get_position" ) @=> OscEvent get_pos;
+fun void get_pos_listener() {
+  while ( true ) {
+    get_pos => now;
+    while ( get_pos.nextMsg() != 0 ) { 
+      xmit.startMsg( "/current_position", "i" );
+      buffers[0].pos() => xmit.addInt;
+    }
+  }
+}
+spork ~ get_pos_listener();
+
+recv.event( "/abs_position, i" ) @=> OscEvent abs_pos;
+fun void abs_position_listener() {
+  while (true) {
+    abs_pos => now;
+    while ( abs_pos.nextMsg() != 0 ) { 
+      abs_pos.getInt() => int p;
+      for( 0 => int i; i < buffers.cap(); i++ ) { p => buffers[i].pos; }
+    }
+  }
+}
+spork ~ abs_position_listener();
+
+recv.event( "/relative_position, i" ) @=> OscEvent pos;
+fun void relative_position_listener() {
   while (true) {
     pos => now;
     while ( pos.nextMsg() != 0 ) { 
@@ -41,25 +68,11 @@ fun void position_listener() {
     }
   }
 }
+spork ~ relative_position_listener();
 
-fun void loop_listener() {
-  while (true) {
-    loop => now;
-    while ( loop.nextMsg() != 0 ) { 
-      loop.getInt() => loop_start;
-      loop.getInt() => loop_end;
-    }
-  }
-}
-
-spork ~ load_listener();
-spork ~ rate_listener();
-spork ~ position_listener();
-spork ~ loop_listener();
 
 while (true) {
-  1::samp => now;
-  if (loop_end != 0 && buffers[0].pos() >= loop_end) {
-    for( 0 => int i; i < buffers.cap(); i++ ) { loop_start => buffers[i].pos; }
-  }
+  1::second => now;
+  //xmit.startMsg( "/current_position", "i" );
+  //buffers[0].pos() => xmit.addInt;
 }
