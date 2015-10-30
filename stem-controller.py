@@ -14,7 +14,8 @@ position = 0
 
 # files and dirs
 root_dir = "/mnt/usb/stems"
-files = os.listdir(root_dir).sort()
+files = os.listdir(root_dir)
+files.sort()
 file_idx = 0
 current = ""
 
@@ -143,16 +144,19 @@ def select_mode(event):
   update_display()
 
 def quit():
-  # TODO kill chuck?
+  #os.system("killall chuck")
+  cad.lcd.clear()
+  cad.lcd.backlight_off()
   osc_server.close()
-  listener.deactivate()
-  sys.exit()
-  # poweroff
+  #os.system("killall python2")
+  os.system("poweroff")
 
 
 def edit(event):
   if mode == modes[0]:
-    if event.pin_num == 6: set_bpm(bpm-1)
+    if event.pin_num == 5:
+        if cad.switches[0].value == 1: quit()
+    elif event.pin_num == 6: set_bpm(bpm-1)
     elif event.pin_num == 7: set_bpm(bpm+1)
   elif mode == modes[1]:
     if event.pin_num == 5: load()
