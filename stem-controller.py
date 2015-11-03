@@ -2,9 +2,6 @@
 '''
 TODO
   time display update
-  bpm preselect
-  nudge
-  skip 16th,8th,4th
 '''
 
 import pifacecad
@@ -167,25 +164,39 @@ def edit(event):
     if event.pin_num == 5:
       if cad.switches[0].value == 1: quit()
       else: load()
-    elif event.pin_num == 6: select(-1)
-    elif event.pin_num == 7: select(1)
-  elif mode == modes[1]:
-    #if event.pin_num == 5:
-    if event.pin_num == 6:
-      set_bpm(bpm-1)
-    elif event.pin_num == 7:
-      set_bpm(bpm+1)
-  elif mode == modes[2]:
-    if event.pin_num == 6:
-      last_bpm = bpm
+    elif event.pin_num == 6:
       while cad.switches[6].value == 1:
-        set_bpm(0.9*bpm)
-        time.sleep(0.5)
+        select(-1)
+        update_display()
+        time.sleep(0.25)
     elif event.pin_num == 7:
-      last_bpm = bpm
       while cad.switches[7].value == 1:
-        set_bpm(1.1*bpm)
-        time.sleep(0.5)
+        select(1)
+        update_display()
+        time.sleep(0.25)
+  elif mode == modes[1]:
+    if event.pin_num == 6:
+      while cad.switches[6].value == 1:
+        set_bpm(bpm-1)
+        update_display()
+        time.sleep(0.25)
+    elif event.pin_num == 7:
+      while cad.switches[7].value == 1:
+        set_bpm(bpm+1)
+        update_display()
+        time.sleep(0.25)
+  elif mode == modes[2]:
+    last_bpm = bpm
+    if event.pin_num == 6:
+      while cad.switches[6].value == 1:
+        set_bpm(0.95*bpm)
+        update_display()
+        time.sleep(0.25)
+    elif event.pin_num == 7:
+      while cad.switches[7].value == 1:
+        set_bpm(1.05*bpm)
+        update_display()
+        time.sleep(0.25)
     set_bpm(last_bpm)
   elif mode == modes[3]:
     if event.pin_num == 5: set_cue()
