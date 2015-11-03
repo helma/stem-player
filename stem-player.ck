@@ -16,6 +16,8 @@ fun void load_listener() {
     files => now;
     while ( files.nextMsg() != 0 ) { 
       for( 0 => int i; i < buffers.cap(); i++ ) { files.getString() => buffers[i].read; }
+      xmit.startMsg( "/length", "i" );
+      buffers[0].samples() => xmit.addInt;
     }
   }
 }

@@ -1,16 +1,26 @@
 #!/bin/env python2
+'''
+TODO
+  time display update
+  bpm preselect
+  nudge
+  skip 16th,8th,4th
+'''
+
 import pifacecad
 import sys, time, os, re, thread
 import OSC
 
 # global variables
-modes = ["bpm","select","nudge","bars","cue"]
-mode = modes[1]
+modes = ["select","bpm","nudge","bars","cue"]
+mode = modes[0]
 bpm = 132.0
+new_bpm = 132.0
 original_bpm = 132.0
 rate = bpm/original_bpm
 cue = 0
 position = 0
+length = 0
 
 # files and dirs
 root_dir = "/mnt/usb/stems"
@@ -53,11 +63,16 @@ def set_position(path, tags, args, source):
   # source is where the message came from (in case you need to reply)
   position = args[0]
 
+def set_length(path, tags, args, source):
+  global length
+  length = args[0]
+
 def run_server():
   while True:
     osc_server.handle_request()
 
 osc_server.addMsgHandler("/current_position", set_position)
+osc_server.addMsgHandler("/length", set_length)
 thread.start_new_thread(run_server,())
 
 # functions
@@ -106,62 +121,59 @@ def current_pos():
   osc_msg = OSC.OSCMessage()
   osc_msg.setAddress("/get_position")
   osc_client.send(osc_msg)
+  time.sleep(0.01) # wait for OSC to arrive
 
 def set_cue():
   global cue
   current_pos()
-  time.sleep(0.01) # wait for OSC to arrive
   loop_nr = position // bar() # floor division
   cue = loop_nr*bar()
 
-'''
-def loop(bars):
-  loop_size = bars*bar()
-  loop_nr = current_pos() // loop_size # floor division
-  start = loop_nr*loop_size
-  osc_send("/loop",start,loop_size)
-
-def noloop():
-  osc_send("/loop",0,0)
-'''
+def time_format(i):
+  seconds = i/44100.0/rate
+  minutes = seconds//60
+  seconds = seconds - 60*minutes
+  return ('%02d' % int(minutes))+":"+('%02d' % int(round(seconds)))
 
 def update_display():
+  current_pos()
   lcd.clear()
   lcd.blink_off()
-  string = str(int(round(bpm))) + " " + files[file_idx]
-  lcd.write(string)
+  lcd.set_cursor(0,0)
+  lcd.write(files[file_idx])
+  lcd.set_cursor(13,0)
+  lcd.write(('%03d' % int(round(bpm))))
+  lcd.set_cursor(0,1)
+  lcd.write(time_format(length-position))
+  lcd.set_cursor(11,1)
+  lcd.write(time_format(cue))
+  set_cursor()
+
+def set_cursor():
   if mode == modes[0]:
-    lcd.set_cursor(2,0)
-  elif mode == modes[1]:
-    lcd.set_cursor(4,0)
+    lcd.set_cursor(0,0)
     if files[file_idx] != current: lcd.blink_on()
-  else:
-    lcd.write(" "+mode)
+  elif mode == modes[1]: lcd.set_cursor(13,0)
+  elif mode == modes[3]: lcd.set_cursor(0,1)
+  elif mode == modes[4]: lcd.set_cursor(11,1)
 
 def select_mode(event):
   global mode
   mode = modes[event.pin_num]
   update_display()
 
-def quit():
-  #os.system("killall chuck")
-  cad.lcd.clear()
-  cad.lcd.backlight_off()
-  osc_server.close()
-  #os.system("killall python2")
-  os.system("poweroff")
-
-
 def edit(event):
   if mode == modes[0]:
     if event.pin_num == 5:
-        if cad.switches[0].value == 1: quit()
-    elif event.pin_num == 6: set_bpm(bpm-1)
-    elif event.pin_num == 7: set_bpm(bpm+1)
-  elif mode == modes[1]:
-    if event.pin_num == 5: load()
+      if cad.switches[0].value == 1: quit()
+      else: load()
     elif event.pin_num == 6: select(-1)
     elif event.pin_num == 7: select(1)
+  elif mode == modes[1]:
+    if event.pin_num == 5:
+      if cad.switches[0].value == 1: quit()
+    elif event.pin_num == 6: set_bpm(bpm-1)
+    elif event.pin_num == 7: set_bpm(bpm+1)
   elif mode == modes[3]:
     if event.pin_num == 5: set_cue()
     elif event.pin_num == 6: move_bars(-8)
@@ -171,6 +183,12 @@ def edit(event):
     elif event.pin_num == 6: goto(0)
     elif event.pin_num == 7: goto(cue)
   update_display()
+
+def quit():
+  cad.lcd.clear()
+  cad.lcd.backlight_off()
+  osc_server.close()
+  os.system("poweroff")
     
 listener = pifacecad.SwitchEventListener(chip=cad)
 for i in range(5):
@@ -182,3 +200,9 @@ for i in range(5,8):
 update_display()
 listener.activate()
 
+def update_time():
+  while True:
+    update_display()
+    time.sleep(1)
+
+#thread.start_new_thread(update_time,())
